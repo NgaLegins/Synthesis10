@@ -2,39 +2,43 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>The Substance - Everything Comes From You</title>
-    
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hydra Substance Experience</title>
     <script src="https://unpkg.com/hydra-synth"></script>
-    
-    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
-
+    <script src="https://unpkg.com/tone"></script>
     <style>
-        body {
+        body, html {
             margin: 0;
             padding: 0;
-            overflow: hidden;
+            width: 100%;
+            height: 100%;
             background-color: black;
-            touch-action: none; /* Impedisce lo scroll del browser su mobile */
-        }
-        canvas {
-            display: block;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
         #hydra-canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
             width: 100%;
             height: 100%;
         }
-        /* Nasconde il canvas originale di p5, usiamo solo quello di Hydra */
-        .p5Canvas {
-            display: none;
+        #ui-overlay {
+            position: absolute;
+            z-index: 10;
+            color: white;
+            font-family: 'Arial', sans-serif;
+            text-align: center;
+            cursor: pointer;
+            border: 2px solid white;
+            padding: 20px;
+            background: rgba(0,0,0,0.7);
+            letter-spacing: 2px;
         }
     </style>
 </head>
 <body>
+
+    <div id="ui-overlay">CLICCA PER ATTIVARE IL PROCESSO</div>
     <canvas id="hydra-canvas"></canvas>
 
     <script>
@@ -42,74 +46,95 @@
         const hydra = new Hydra({
             canvas: document.getElementById("hydra-canvas"),
             detectAudio: false
-        })
+        });
 
-        let words = ["EVERYTHING", "COMES", "FROM", "YOU"];
-        let currentWordIndex = 0;
+        // Helper per caricare lo script delle GIF
+        const loadScript = (url) => new Promise((resolve) => {
+            const script = document.createElement("script");
+            script.src = url;
+            script.onload = resolve;
+            document.head.appendChild(script);
+        });
 
-        // 2. Inizializzazione P5 in Instance Mode
-        const sketch = (p) => {
-            p.setup = () => {
-                p.createCanvas(window.innerWidth, window.innerHeight);
-                // Comunichiamo a Hydra di usare questo canvas come sorgente s0
-                s0.init({ src: p.canvas });
-            };
+        async function startApp() {
+            // Rimuovi overlay
+            document.getElementById('ui-overlay').style.display = 'none';
+            
+            // Attiva Audio Context
+            await Tone.start();
 
-            p.draw = () => {
-                p.clear();
-                p.textAlign(p.CENTER, p.CENTER);
-                p.textFont('Bebas Neue');
+            // Carica plugin GIF
+            await loadScript("https://cdn.jsdelivr.net/gh/geikha/hyper-hydra@latest/hydra-gif.js");
 
-                // Cambio parola ogni 60 frame
-                if (p.frameCount % 60 === 0) {
-                    currentWordIndex = (currentWordIndex + 1) % words.length;
+            // --- CONFIGURAZIONE AUDIO ---
+            const dist = new Tone.Distortion(0.8).toDestination();
+            const verb = new Tone.Reverb(2).toDestination();
+            const synth = new Tone.MembraneSynth({
+                pitchDecay: 0.05,
+                octaves: 4,
+                oscillator: { type: "sine" },
+                envelope: { attack: 0.001, decay: 0.8, sustain: 0.01, release: 1.4 }
+            }).connect(dist).connect(verb);
+
+            // --- SORGENTI VISIVE ---
+            // Sfondo principale
+            s0.initGif('https://raw.githubusercontent.com/NgaLegins/Synthesis10/main/Daily%20Flicks.gif');
+            
+            // GIF Substance (usando il formato gif come richiesto)
+            s2.initGif('https://github.com/NgaLegins/Synthesis10/blob/main/Substance%20GIF.gif?raw=true');
+
+            // Canvas per il testo
+            const textCanvas = document.createElement("canvas");
+            textCanvas.width = 1280;
+            textCanvas.height = 720;
+            const ctx = textCanvas.getContext("2d");
+            s1.init({ src: textCanvas });
+
+            // --- LOGICA DI CONTROLLO ---
+            const words = ["REMEMBER", "YOU", "ARE", "ONE"];
+            let lastIndex = -1;
+            window.isOne = 0;
+
+            // Loop di aggiornamento
+            update = () => {
+                let index = Math.floor(time * 1) % words.length; 
+                window.isOne = (index === 3) ? 1 : 0;
+
+                if (index !== lastIndex) {
+                    ctx.clearRect(0, 0, textCanvas.width, textCanvas.height);
+                    
+                    // Colore: Rosso se "ONE", Bianco altrimenti
+                    ctx.fillStyle = (index === 3) ? "red" : "white";
+                    ctx.font = "bold 250px Arial"; 
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    ctx.fillText(words[index], textCanvas.width / 2, textCanvas.height / 2);
+                    
+                    // Suono d'impatto (G0 per ONE, C1 per gli altri)
+                    let note = (index === 3) ? "G0" : "C1";
+                    synth.triggerAttackRelease(note, "8n");
+                    
+                    lastIndex = index;
                 }
+            }
 
-                // Logica Touch/Mouse
-                let isTouching = p.touches.length > 0 || p.mouseIsPressed;
-                let tx = p.touches.length > 0 ? p.touches[0].x : p.mouseX;
-                let ty = p.touches.length > 0 ? p.touches[0].y : p.mouseY;
+            // --- COMPOSIZIONE FINALE ---
+            src(s0)
+                .scale(1, 0.6)
+                .layer(
+                    src(s1)
+                    .luma(0.1, 0.1)
+                )
+                .layer(
+                    src(s2).scale(1.2), 
+                    () => window.isOne
+                )
+                .modulate(noise(2), () => window.isOne * 0.05) 
+                .out();
+        }
 
-                // Massa organica interattiva
-                if (isTouching) {
-                    p.push();
-                    p.translate(tx, ty);
-                    p.fill(255, 0, 80, 180);
-                    for (let i = 0; i < 6; i++) {
-                        p.rotate(p.frameCount * 0.05);
-                        let r = p.sin(p.frameCount * 0.1 + i) * 40 + 60;
-                        p.ellipse(p.random(-10, 10), 0, r, r / 3);
-                    }
-                    p.pop();
-                }
-
-                // Testo leggibile
-                p.fill(255);
-                let dynamicSize = p.width < 600 ? p.width * 0.22 : p.width * 0.15;
-                p.textSize(dynamicSize);
-                p.text(words[currentWordIndex], tx, ty);
-            };
-
-            p.windowResized = () => {
-                p.resizeCanvas(window.innerWidth, window.innerHeight);
-            };
-        };
-
-        new p5(sketch);
-
-        // 3. Effetti Hydra (Sostanza e Feedback)
-        src(s0)
-            .blend(o0, 0.7)
-            .layer(
-                src(s0)
-                .luma(0.1)
-                .color(1, 0, 0.2)
-                .scrollX(0.001)
-            )
-            .modulate(noise(2, 0.1), () => (mouse.x > 0 ? 0.03 : 0)) // Interattività Hydra
-            .saturate(2)
-            .contrast(1.2)
-            .out();
+        // Avvio al click
+        document.getElementById('ui-overlay').onclick = startApp;
     </script>
 </body>
 </html>
