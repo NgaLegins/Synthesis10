@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>The Substance - Everything Comes From You</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+    <script src="https://unpkg.com/hydra-synth"></script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: black;
+            touch-action: none; /* Impedisce lo scroll del browser su mobile */
+        }
+        canvas {
+            display: block;
+        }
+        #hydra-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        /* Nasconde il canvas originale di p5, usiamo solo quello di Hydra */
+        .p5Canvas {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="hydra-canvas"></canvas>
+
+    <script>
+        // 1. Inizializzazione Hydra
+        const hydra = new Hydra({
+            canvas: document.getElementById("hydra-canvas"),
+            detectAudio: false
+        })
+
+        let words = ["EVERYTHING", "COMES", "FROM", "YOU"];
+        let currentWordIndex = 0;
+
+        // 2. Inizializzazione P5 in Instance Mode
+        const sketch = (p) => {
+            p.setup = () => {
+                p.createCanvas(window.innerWidth, window.innerHeight);
+                // Comunichiamo a Hydra di usare questo canvas come sorgente s0
+                s0.init({ src: p.canvas });
+            };
+
+            p.draw = () => {
+                p.clear();
+                p.textAlign(p.CENTER, p.CENTER);
+                p.textFont('Bebas Neue');
+
+                // Cambio parola ogni 60 frame
+                if (p.frameCount % 60 === 0) {
+                    currentWordIndex = (currentWordIndex + 1) % words.length;
+                }
+
+                // Logica Touch/Mouse
+                let isTouching = p.touches.length > 0 || p.mouseIsPressed;
+                let tx = p.touches.length > 0 ? p.touches[0].x : p.mouseX;
+                let ty = p.touches.length > 0 ? p.touches[0].y : p.mouseY;
+
+                // Massa organica interattiva
+                if (isTouching) {
+                    p.push();
+                    p.translate(tx, ty);
+                    p.fill(255, 0, 80, 180);
+                    for (let i = 0; i < 6; i++) {
+                        p.rotate(p.frameCount * 0.05);
+                        let r = p.sin(p.frameCount * 0.1 + i) * 40 + 60;
+                        p.ellipse(p.random(-10, 10), 0, r, r / 3);
+                    }
+                    p.pop();
+                }
+
+                // Testo leggibile
+                p.fill(255);
+                let dynamicSize = p.width < 600 ? p.width * 0.22 : p.width * 0.15;
+                p.textSize(dynamicSize);
+                p.text(words[currentWordIndex], tx, ty);
+            };
+
+            p.windowResized = () => {
+                p.resizeCanvas(window.innerWidth, window.innerHeight);
+            };
+        };
+
+        new p5(sketch);
+
+        // 3. Effetti Hydra (Sostanza e Feedback)
+        src(s0)
+            .blend(o0, 0.7)
+            .layer(
+                src(s0)
+                .luma(0.1)
+                .color(1, 0, 0.2)
+                .scrollX(0.001)
+            )
+            .modulate(noise(2, 0.1), () => (mouse.x > 0 ? 0.03 : 0)) // Interattività Hydra
+            .saturate(2)
+            .contrast(1.2)
+            .out();
+    </script>
+</body>
+</html>
