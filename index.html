@@ -2,43 +2,47 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Substance - Hydra Visualization</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>The Substance - Mobile</title>
     <style>
         body {
             margin: 0;
             padding: 0;
-            overflow: hidden; /* Nasconde le barre di scorrimento */
+            overflow: hidden;
             background-color: black;
+            /* Impedisce comportamenti di scroll/zoom nativi del browser mentre si tocca */
+            touch-action: none; 
         }
         canvas {
             display: block;
-            width: 100vw;
-            height: 100vh;
+            width: 100%;
+            height: 100%;
         }
     </style>
 </head>
 <body>
 
     <canvas id="hydra-canvas"></canvas>
-
     <script src="https://unpkg.com/hydra-synth"></script>
 
     <script>
-        // 1. INIZIALIZZAZIONE DI HYDRA
-        // Crea una nuova istanza di Hydra collegata al canvas HTML
+        // 1. INIZIALIZZAZIONE RESPONSIVE
         const hydra = new Hydra({
             canvas: document.getElementById("hydra-canvas"),
-            detectAudio: false, // Mettiamo false se non serve input microfono
+            detectAudio: false,
             enableStreamCapture: false
         });
 
-        // 2. LO SCRIPT ESATTO (Copiato dalla versione precedente)
-        
-        // Impostiamo una risoluzione nitida
-        setResolution(1920, 1080);
+        // Imposta la risoluzione basata sulle dimensioni reali del telefono
+        // Questo mantiene l'aspetto nitido sia in verticale che in orizzontale
+        setResolution(window.innerWidth, window.innerHeight);
 
-        // --- BLOCCO PER LA SCRITTA (Generazione Canvas) ---
+        // Aggiorna la risoluzione se il telefono viene ruotato
+        window.addEventListener('resize', () => {
+            setResolution(window.innerWidth, window.innerHeight);
+        });
+
+        // --- BLOCCO TESTO OTTIMIZZATO PER MOBILE ---
         const textCanvas = document.createElement('canvas');
         const ctx = textCanvas.getContext('2d');
 
@@ -47,46 +51,47 @@
             textCanvas.height = window.innerHeight;
             ctx.clearRect(0, 0, textCanvas.width, textCanvas.height);
             
-            // Stile scritta: Bianca, Bold, in basso
-            // Nota: "900" è il font-weight (extra bold)
-            ctx.font = '900 4vh Bebas neue, Bebas neue, sans-serif';
+            // Calcola la dimensione del font in base alla larghezza (4% della larghezza schermo)
+            // Questo assicura che la frase lunga entri nello schermo verticale
+            const fontSize = Math.floor(window.innerWidth * 0.05); 
+            
+            ctx.font = '900 ' + fontSize + 'px Helvetica Neue, Arial, sans-serif';
             ctx.fillStyle = '#FFFFFF';
             ctx.textAlign = 'center';
-            ctx.letterSpacing = '4px';
+            // Riduciamo leggermente lo spacing su mobile per far entrare tutto
+            ctx.letterSpacing = '2px'; 
 
             const text = "ACTIVATE YOUR SUBCONSCIOUS";
-            // Posizionato al 93% dell'altezza
-            ctx.fillText(text, textCanvas.width / 2, textCanvas.height * 0.93);
+            // Posizionato in basso, lasciando un margine sicuro per la barra di navigazione del telefono
+            ctx.fillText(text, textCanvas.width / 2, textCanvas.height * 0.90);
         }
 
-        // Inizializza il testo e aggiorna al ridimensionamento finestra
         updateText();
         window.addEventListener('resize', updateText);
-        
-        // Carica il canvas del testo nella sorgente s0
         s0.init({ src: textCanvas, dynamic: true });
 
-        // --- SCRIPT VISUALE "THE SUBSTANCE" ---
+        // --- SCRIPT VISUALE ORIGINALE (Inalterato nella logica) ---
+        // Nota: Su mobile 'mouse.x/y' corrispondono alla posizione del dito
+        
         src(o0)
-          .scale(1.05) // Leggero zoom per creare fluidità in avanti
-          .modulate(noise(3, 0.1)) // Aggiunge imperfezioni organiche al movimento
+          .scale(1.05) 
+          .modulate(noise(3, 0.1)) 
           .blend(
-            voronoi(8, 2, 5) // La base cellulare (8 celle, contorni morbidi)
-              .modulateScale(osc(10, 0.1, 0.5), 0.5) // Pulsazione ritmica
-              .modulateRotate(noise(2, 0.2), () => (mouse.x * 0.005)) // Rotazione basata su mouse X
-              .thresh(0.3, 0.0) // Taglio netto membrane
-              // Gestione Colore: Mix tra carne e siero
+            voronoi(8, 2, 5) 
+              .modulateScale(osc(10, 0.1, 0.5), 0.5) 
+              .modulateRotate(noise(2, 0.2), () => (mouse.x * 0.005)) 
+              .thresh(0.3, 0.0) 
               .color(
-                () => 1 + (mouse.y * 0.001), // Rosso
-                () => 0.4 + (mouse.y * 0.005), // Verde (aumenta col mouse Y)
-                () => 0.4 // Blu basso
+                () => 1 + (mouse.y * 0.001), 
+                () => 0.4 + (mouse.y * 0.005), 
+                () => 0.4 
               )
               .contrast(1.4)
               .brightness(0.1),
-            0.1 // Quantità di blending (scia viscosa)
+            0.1 
           )
-          .modulatePixelate(noise(25, 0.5), 100, 8) // Pixelation organica sui bordi
-          .layer(src(s0)) // Sovrappone la scritta creata sopra
+          .modulatePixelate(noise(25, 0.5), 100, 8) 
+          .layer(src(s0)) 
           .out(o0);
 
     </script>
