@@ -3,138 +3,92 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hydra Substance Experience</title>
-    <script src="https://unpkg.com/hydra-synth"></script>
-    <script src="https://unpkg.com/tone"></script>
+    <title>The Substance - Hydra Visualization</title>
     <style>
-        body, html {
+        body {
             margin: 0;
             padding: 0;
-            width: 100%;
-            height: 100%;
+            overflow: hidden; /* Nasconde le barre di scorrimento */
             background-color: black;
-            overflow: hidden;
-            display: flex;
-            justify-content: center;
-            align-items: center;
         }
-        #hydra-canvas {
-            width: 100%;
-            height: 100%;
-        }
-        #ui-overlay {
-            position: absolute;
-            z-index: 10;
-            color: white;
-            font-family: 'Arial', sans-serif;
-            text-align: center;
-            cursor: pointer;
-            border: 2px solid white;
-            padding: 20px;
-            background: rgba(0,0,0,0.7);
-            letter-spacing: 2px;
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
         }
     </style>
 </head>
 <body>
 
-    <div id="ui-overlay">CLICCA PER ATTIVARE IL PROCESSO</div>
     <canvas id="hydra-canvas"></canvas>
 
+    <script src="https://unpkg.com/hydra-synth"></script>
+
     <script>
-        // 1. Inizializzazione Hydra
+        // 1. INIZIALIZZAZIONE DI HYDRA
+        // Crea una nuova istanza di Hydra collegata al canvas HTML
         const hydra = new Hydra({
             canvas: document.getElementById("hydra-canvas"),
-            detectAudio: false
+            detectAudio: false, // Mettiamo false se non serve input microfono
+            enableStreamCapture: false
         });
 
-        // Helper per caricare lo script delle GIF
-        const loadScript = (url) => new Promise((resolve) => {
-            const script = document.createElement("script");
-            script.src = url;
-            script.onload = resolve;
-            document.head.appendChild(script);
-        });
+        // 2. LO SCRIPT ESATTO (Copiato dalla versione precedente)
+        
+        // Impostiamo una risoluzione nitida
+        setResolution(1920, 1080);
 
-        async function startApp() {
-            // Rimuovi overlay
-            document.getElementById('ui-overlay').style.display = 'none';
+        // --- BLOCCO PER LA SCRITTA (Generazione Canvas) ---
+        const textCanvas = document.createElement('canvas');
+        const ctx = textCanvas.getContext('2d');
+
+        function updateText() {
+            textCanvas.width = window.innerWidth;
+            textCanvas.height = window.innerHeight;
+            ctx.clearRect(0, 0, textCanvas.width, textCanvas.height);
             
-            // Attiva Audio Context
-            await Tone.start();
+            // Stile scritta: Bianca, Bold, in basso
+            // Nota: "900" è il font-weight (extra bold)
+            ctx.font = '900 4vh Bebas neue, Bebas neue, sans-serif';
+            ctx.fillStyle = '#FFFFFF';
+            ctx.textAlign = 'center';
+            ctx.letterSpacing = '4px';
 
-            // Carica plugin GIF
-            await loadScript("https://cdn.jsdelivr.net/gh/geikha/hyper-hydra@latest/hydra-gif.js");
-
-            // --- CONFIGURAZIONE AUDIO ---
-            const dist = new Tone.Distortion(0.8).toDestination();
-            const verb = new Tone.Reverb(2).toDestination();
-            const synth = new Tone.MembraneSynth({
-                pitchDecay: 0.05,
-                octaves: 4,
-                oscillator: { type: "sine" },
-                envelope: { attack: 0.001, decay: 0.8, sustain: 0.01, release: 1.4 }
-            }).connect(dist).connect(verb);
-
-            // --- SORGENTI VISIVE ---
-            // Sfondo principale
-            s0.initGif('https://raw.githubusercontent.com/NgaLegins/Synthesis10/main/Daily%20Flicks.gif');
-            
-            // GIF Substance (usando il formato gif come richiesto)
-            s2.initGif('https://github.com/NgaLegins/Synthesis10/blob/main/Substance%20GIF.gif?raw=true');
-
-            // Canvas per il testo
-            const textCanvas = document.createElement("canvas");
-            textCanvas.width = 1280;
-            textCanvas.height = 720;
-            const ctx = textCanvas.getContext("2d");
-            s1.init({ src: textCanvas });
-
-            // --- LOGICA DI CONTROLLO ---
-            const words = ["REMEMBER", "YOU", "ARE", "ONE"];
-            let lastIndex = -1;
-            window.isOne = 0;
-
-            // Loop di aggiornamento
-            update = () => {
-                let index = Math.floor(time * 1) % words.length; 
-                window.isOne = (index === 3) ? 1 : 0;
-
-                if (index !== lastIndex) {
-                    ctx.clearRect(0, 0, textCanvas.width, textCanvas.height);
-                    
-                    // Colore: Rosso se "ONE", Bianco altrimenti
-                    ctx.fillStyle = (index === 3) ? "red" : "white";
-                    ctx.font = "bold 250px Arial"; 
-                    ctx.textAlign = "center";
-                    ctx.textBaseline = "middle";
-                    ctx.fillText(words[index], textCanvas.width / 2, textCanvas.height / 2);
-                    
-                    // Suono d'impatto (G0 per ONE, C1 per gli altri)
-                    let note = (index === 3) ? "G0" : "C1";
-                    synth.triggerAttackRelease(note, "8n");
-                    
-                    lastIndex = index;
-                }
-            }
-
-            // --- COMPOSIZIONE FINALE ---
-            src(s0)
-                .scale(1, 0.6)
-                .layer(
-                    src(s1)
-                    .luma(0.1, 0.1)
-                )
-                .layer(
-                    src(s2).scale(1.2), 
-                    () => window.isOne
-                )
-                .modulate(noise(2), () => window.isOne * 0.05) 
-                .out();
+            const text = "ACTIVATE YOUR SUBCONSCIOUS";
+            // Posizionato al 93% dell'altezza
+            ctx.fillText(text, textCanvas.width / 2, textCanvas.height * 0.93);
         }
 
-        // Avvio al click
-        document.getElementById('ui-overlay').onclick = startApp;
+        // Inizializza il testo e aggiorna al ridimensionamento finestra
+        updateText();
+        window.addEventListener('resize', updateText);
+        
+        // Carica il canvas del testo nella sorgente s0
+        s0.init({ src: textCanvas, dynamic: true });
+
+        // --- SCRIPT VISUALE "THE SUBSTANCE" ---
+        src(o0)
+          .scale(1.05) // Leggero zoom per creare fluidità in avanti
+          .modulate(noise(3, 0.1)) // Aggiunge imperfezioni organiche al movimento
+          .blend(
+            voronoi(8, 2, 5) // La base cellulare (8 celle, contorni morbidi)
+              .modulateScale(osc(10, 0.1, 0.5), 0.5) // Pulsazione ritmica
+              .modulateRotate(noise(2, 0.2), () => (mouse.x * 0.005)) // Rotazione basata su mouse X
+              .thresh(0.3, 0.0) // Taglio netto membrane
+              // Gestione Colore: Mix tra carne e siero
+              .color(
+                () => 1 + (mouse.y * 0.001), // Rosso
+                () => 0.4 + (mouse.y * 0.005), // Verde (aumenta col mouse Y)
+                () => 0.4 // Blu basso
+              )
+              .contrast(1.4)
+              .brightness(0.1),
+            0.1 // Quantità di blending (scia viscosa)
+          )
+          .modulatePixelate(noise(25, 0.5), 100, 8) // Pixelation organica sui bordi
+          .layer(src(s0)) // Sovrappone la scritta creata sopra
+          .out(o0);
+
     </script>
 </body>
 </html>
