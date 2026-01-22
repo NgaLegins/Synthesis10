@@ -3,97 +3,147 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>The Substance - Mobile</title>
+    <title>The Substance</title>
     <style>
         body {
             margin: 0;
             padding: 0;
-            overflow: hidden;
             background-color: black;
-            /* Impedisce comportamenti di scroll/zoom nativi del browser mentre si tocca */
-            touch-action: none; 
+            overflow: hidden;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            touch-action: none; /* Disabilita lo scroll nativo */
         }
         canvas {
             display: block;
             width: 100%;
             height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+        /* Stile del bottone di avvio per aggirare i blocchi mobile */
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: black;
+            z-index: 10;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+        }
+        #start-btn {
+            color: white;
+            border: 2px solid white;
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            font-weight: 900;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            background: transparent;
         }
     </style>
 </head>
 <body>
 
+    <div id="overlay">
+        <div id="start-btn">TAP TO ACTIVATE</div>
+    </div>
+
     <canvas id="hydra-canvas"></canvas>
+
     <script src="https://unpkg.com/hydra-synth"></script>
 
     <script>
-        // 1. INIZIALIZZAZIONE RESPONSIVE
-        const hydra = new Hydra({
-            canvas: document.getElementById("hydra-canvas"),
-            detectAudio: false,
-            enableStreamCapture: false
-        });
-
-        // Imposta la risoluzione basata sulle dimensioni reali del telefono
-        // Questo mantiene l'aspetto nitido sia in verticale che in orizzontale
-        setResolution(window.innerWidth, window.innerHeight);
-
-        // Aggiorna la risoluzione se il telefono viene ruotato
-        window.addEventListener('resize', () => {
-            setResolution(window.innerWidth, window.innerHeight);
-        });
-
-        // --- BLOCCO TESTO OTTIMIZZATO PER MOBILE ---
-        const textCanvas = document.createElement('canvas');
-        const ctx = textCanvas.getContext('2d');
-
-        function updateText() {
-            textCanvas.width = window.innerWidth;
-            textCanvas.height = window.innerHeight;
-            ctx.clearRect(0, 0, textCanvas.width, textCanvas.height);
-            
-            // Calcola la dimensione del font in base alla larghezza (4% della larghezza schermo)
-            // Questo assicura che la frase lunga entri nello schermo verticale
-            const fontSize = Math.floor(window.innerWidth * 0.05); 
-            
-            ctx.font = '900 ' + fontSize + 'px Helvetica Neue, Arial, sans-serif';
-            ctx.fillStyle = '#FFFFFF';
-            ctx.textAlign = 'center';
-            // Riduciamo leggermente lo spacing su mobile per far entrare tutto
-            ctx.letterSpacing = '2px'; 
-
-            const text = "ACTIVATE YOUR SUBCONSCIOUS";
-            // Posizionato in basso, lasciando un margine sicuro per la barra di navigazione del telefono
-            ctx.fillText(text, textCanvas.width / 2, textCanvas.height * 0.90);
-        }
-
-        updateText();
-        window.addEventListener('resize', updateText);
-        s0.init({ src: textCanvas, dynamic: true });
-
-        // --- SCRIPT VISUALE ORIGINALE (Inalterato nella logica) ---
-        // Nota: Su mobile 'mouse.x/y' corrispondono alla posizione del dito
+        const overlay = document.getElementById('overlay');
         
-        src(o0)
-          .scale(1.05) 
-          .modulate(noise(3, 0.1)) 
-          .blend(
-            voronoi(8, 2, 5) 
-              .modulateScale(osc(10, 0.1, 0.5), 0.5) 
-              .modulateRotate(noise(2, 0.2), () => (mouse.x * 0.005)) 
-              .thresh(0.3, 0.0) 
-              .color(
-                () => 1 + (mouse.y * 0.001), 
-                () => 0.4 + (mouse.y * 0.005), 
-                () => 0.4 
-              )
-              .contrast(1.4)
-              .brightness(0.1),
-            0.1 
-          )
-          .modulatePixelate(noise(25, 0.5), 100, 8) 
-          .layer(src(s0)) 
-          .out(o0);
+        // Funzione principale che parte solo dopo il click
+        overlay.addEventListener('click', () => {
+            overlay.style.display = 'none'; // Nasconde il bottone
+            initTheSubstance(); // Avvia lo script
+        });
 
+        function initTheSubstance() {
+            // Inizializza Hydra
+            const hydra = new Hydra({
+                canvas: document.getElementById("hydra-canvas"),
+                detectAudio: false,
+                enableStreamCapture: false,
+                makeGlobal: true // Rende le funzioni (src, osc, etc.) globali
+            });
+
+            // --- GESTIONE TOUCH MANUALE (FIX PER MOBILE) ---
+            // Forza l'aggiornamento di mouse.x e mouse.y quando si tocca lo schermo
+            document.addEventListener('touchmove', (e) => {
+                const touch = e.touches[0];
+                mouse.x = touch.clientX / window.innerWidth;
+                mouse.y = touch.clientY / window.innerHeight;
+            }, { passive: false });
+
+            document.addEventListener('touchstart', (e) => {
+                const touch = e.touches[0];
+                mouse.x = touch.clientX / window.innerWidth;
+                mouse.y = touch.clientY / window.innerHeight;
+            }, { passive: false });
+
+            // Imposta risoluzione
+            setResolution(window.innerWidth, window.innerHeight);
+
+            // --- GENERAZIONE SCRITTA (CANVAS ESTERNO) ---
+            const textCanvas = document.createElement('canvas');
+            const ctx = textCanvas.getContext('2d');
+
+            function updateText() {
+                textCanvas.width = window.innerWidth;
+                textCanvas.height = window.innerHeight;
+                ctx.clearRect(0, 0, textCanvas.width, textCanvas.height);
+                
+                // Font reattivo
+                const fontSize = Math.max(16, Math.floor(window.innerWidth * 0.05)); 
+                ctx.font = '900 ' + fontSize + 'px Helvetica Neue, Arial, sans-serif';
+                ctx.fillStyle = '#FFFFFF';
+                ctx.textAlign = 'center';
+                ctx.letterSpacing = '3px';
+
+                const text = "ACTIVATE YOUR SUBCONSCIOUS";
+                ctx.fillText(text, textCanvas.width / 2, textCanvas.height * 0.92);
+            }
+
+            updateText();
+            window.addEventListener('resize', () => {
+                setResolution(window.innerWidth, window.innerHeight);
+                updateText();
+            });
+            
+            // Inizializza s0 con il testo
+            s0.init({ src: textCanvas, dynamic: true });
+
+            // --- LO SCRIPT VISUALE (THE SUBSTANCE) ---
+            src(o0)
+              .scale(1.05) 
+              .modulate(noise(3, 0.1)) 
+              .blend(
+                voronoi(8, 2, 5) 
+                  .modulateScale(osc(10, 0.1, 0.5), 0.5) 
+                  .modulateRotate(noise(2, 0.2), () => (mouse.x * 0.005)) 
+                  .thresh(0.3, 0.0) 
+                  .color(
+                    () => 1 + (mouse.y * 0.001), 
+                    () => 0.4 + (mouse.y * 0.005), 
+                    () => 0.4 
+                  )
+                  .contrast(1.4)
+                  .brightness(0.1),
+                0.1 
+              )
+              .modulatePixelate(noise(25, 0.5), 100, 8) 
+              .layer(src(s0)) // Sovrappone la scritta
+              .out(o0);
+        }
     </script>
 </body>
 </html>
