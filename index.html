@@ -91,10 +91,10 @@
             
             src(o0)
               .scale(1.05) // Zoom costante fluido
-              .modulate(noise(5, 0.1)) // Imperfezioni organiche
+              .modulate(noise(5, 0.3)) // Imperfezioni organiche
               .blend(
                 voronoi(8, 2, 5) 
-                  .modulateScale(osc(10, 0.1, 0.5), 0.5) // Battito cardiaco
+                  .modulateScale(osc(11, 0.1, 0.5), 0.5) // Battito cardiaco
                   // ROTAZIONE AUTOMATICA: Usa 'time' invece di mouse.x
                   .modulateRotate(noise(3, 0.2), () => Math.sin(time * 0.1) * 0.2) 
                   .thresh(0.3, 0.0) 
@@ -108,11 +108,11 @@
                     // Blu: Basso costante
                     () => 0.4 
                   )
-                  .contrast(1.4)
-                  .brightness(0.1),
+                  .contrast(1.5)
+                  .brightness(0.2),
                 0.1 // Scia viscosa
               )
-              .modulatePixelate(noise(25, 0.5), 100, 8) 
+              .modulatePixelate(noise(20, 0.5), 100, 8) 
               .layer(src(s0)) // Sovrappone la scritta
               .out(o0);
         };
