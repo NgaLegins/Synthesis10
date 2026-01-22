@@ -3,16 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>The Substance</title>
+    <title>The Substance - Mobile Interaction</title>
     <style>
+        /* Reset e blocco scroll */
         html, body {
             margin: 0;
             padding: 0;
             width: 100%;
             height: 100%;
             background-color: black;
-            overflow: hidden; /* Blocca scroll */
-            touch-action: none; /* Blocca zoom e gesti nativi */
+            overflow: hidden; /* Fondamentale per bloccare lo scroll */
+            touch-action: none; /* Disabilita zoom e pan nativi */
             font-family: 'Helvetica Neue', Arial, sans-serif;
         }
 
@@ -27,9 +28,9 @@
             z-index: 1;
         }
 
-        /* Overlay e Bottone: Z-Index altissimo e posizione FIXED */
+        /* Bottone START (Necessario per policy mobile) */
         #overlay {
-            position: fixed; /* Usiamo fixed per assicurarci che stia sopra su mobile */
+            position: fixed;
             top: 0;
             left: 0;
             width: 100%;
@@ -43,16 +44,15 @@
         }
 
         #start-btn {
-            background-color: white;
-            color: black;
+            color: white;
+            border: 2px solid white;
             padding: 20px 40px;
-            font-size: 1.5rem;
+            font-size: 1.2rem;
             font-weight: 900;
-            letter-spacing: 2px;
+            letter-spacing: 4px;
             text-transform: uppercase;
-            border: none;
-            border-radius: 4px;
-            box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+            background: transparent;
+            pointer-events: none; /* Clicca sul div padre */
         }
     </style>
 </head>
@@ -67,34 +67,30 @@
     <script src="https://unpkg.com/hydra-synth"></script>
 
     <script>
-        // Aspettiamo che tutto sia caricato prima di eseguire qualsiasi logica
+        // Aspettiamo che la pagina sia pronta
         window.onload = function() {
-            
             const overlay = document.getElementById('overlay');
             const canvas = document.getElementById("hydra-canvas");
             let isStarted = false;
 
-            // Al click/touch sull'overlay, avviamo tutto
-            overlay.addEventListener('click', startExperience);
-            overlay.addEventListener('touchstart', startExperience, {passive: false});
-
-            function startExperience(e) {
-                // Previene doppio avvio
+            // Funzione per avviare tutto al primo tocco
+            const startExperience = (e) => {
                 if (isStarted) return;
                 isStarted = true;
                 
-                // Evita comportamenti standard del browser
-                if(e) e.preventDefault();
+                // Nascondi overlay
+                overlay.style.opacity = 0;
+                setTimeout(() => { overlay.style.display = 'none'; }, 500);
 
-                // Nasconde il bottone
-                overlay.style.display = 'none';
-
-                // AVVIA HYDRA
+                // Avvia Hydra
                 initHydra();
-            }
+            };
+
+            overlay.addEventListener('click', startExperience);
+            overlay.addEventListener('touchstart', startExperience, {passive: false});
 
             function initHydra() {
-                // Inizializza istanza
+                // Setup Hydra
                 const hydra = new Hydra({
                     canvas: canvas,
                     detectAudio: false,
@@ -102,37 +98,44 @@
                     makeGlobal: true
                 });
 
-                // --- GESTIONE TOUCH PER MOBILE (Simulazione Mouse) ---
-                // Aggiorna le coordinate mouse.x e mouse.y quando tocchi lo schermo
-                function updateTouch(e) {
-                    // Previene lo scroll
+                // --- GESTIONE TOUCH (LOGICA PRESA DAL TUO ESEMPIO) ---
+                // Hydra si aspetta mouse.x / mouse.y tra 0 e 1.
+                // Usiamo il touch event per aggiornare queste variabili manualmente.
+
+                const updateTouch = (e) => {
+                    // Impedisce lo scroll della pagina (fondamentale)
                     e.preventDefault(); 
                     
-                    let x, y;
+                    let clientX, clientY;
+
+                    // Se è touch
                     if (e.touches && e.touches.length > 0) {
-                        x = e.touches[0].clientX;
-                        y = e.touches[0].clientY;
-                    } else {
-                        x = e.clientX;
-                        y = e.clientY;
+                        clientX = e.touches[0].clientX;
+                        clientY = e.touches[0].clientY;
+                    } 
+                    // Se è mouse (fallback per PC)
+                    else {
+                        clientX = e.clientX;
+                        clientY = e.clientY;
                     }
 
-                    // Normalizza da 0 a 1 per Hydra
+                    // Normalizziamo le coordinate da 0 a 1 per Hydra
+                    // (0 = sinistra/alto, 1 = destra/basso)
                     if (typeof mouse !== 'undefined') {
-                        mouse.x = x / window.innerWidth;
-                        mouse.y = y / window.innerHeight;
+                        mouse.x = clientX / window.innerWidth;
+                        mouse.y = clientY / window.innerHeight;
                     }
-                }
+                };
 
-                // Aggiunge i listener al canvas
-                canvas.addEventListener('mousemove', updateTouch);
-                canvas.addEventListener('touchmove', updateTouch, { passive: false });
-                canvas.addEventListener('touchstart', updateTouch, { passive: false });
+                // Aggiungiamo i listener con { passive: false } per poter usare preventDefault()
+                document.addEventListener('touchmove', updateTouch, { passive: false });
+                document.addEventListener('touchstart', updateTouch, { passive: false });
+                document.addEventListener('mousemove', updateTouch);
 
-                // Imposta risoluzione iniziale
+                // Setup Risoluzione
                 setResolution(window.innerWidth, window.innerHeight);
 
-                // --- GENERAZIONE SCRITTA ---
+                // --- SCRITTA: ACTIVATE YOUR SUBCONSCIOUS ---
                 const textCanvas = document.createElement('canvas');
                 const ctx = textCanvas.getContext('2d');
 
@@ -141,6 +144,7 @@
                     textCanvas.height = window.innerHeight;
                     ctx.clearRect(0, 0, textCanvas.width, textCanvas.height);
                     
+                    // Dimensione font reattiva
                     const fontSize = Math.max(16, Math.floor(window.innerWidth * 0.05)); 
                     ctx.font = '900 ' + fontSize + 'px Helvetica Neue, Arial, sans-serif';
                     ctx.fillStyle = '#FFFFFF';
@@ -148,7 +152,7 @@
                     ctx.letterSpacing = '3px';
 
                     const text = "ACTIVATE YOUR SUBCONSCIOUS";
-                    ctx.fillText(text, textCanvas.width / 2, textCanvas.height * 0.92);
+                    ctx.fillText(text, textCanvas.width / 2, textCanvas.height * 0.93);
                 }
 
                 updateText();
@@ -157,7 +161,6 @@
                     updateText();
                 });
                 
-                // Carica la scritta in s0
                 s0.init({ src: textCanvas, dynamic: true });
 
                 // --- SCRIPT VISUALE (THE SUBSTANCE) ---
