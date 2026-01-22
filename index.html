@@ -5,46 +5,54 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>The Substance</title>
     <style>
-        body {
+        html, body {
             margin: 0;
             padding: 0;
-            background-color: black;
-            overflow: hidden;
-            font-family: 'Helvetica Neue', Arial, sans-serif;
-            touch-action: none; /* Disabilita lo scroll nativo */
-        }
-        canvas {
-            display: block;
             width: 100%;
             height: 100%;
+            background-color: black;
+            overflow: hidden; /* Blocca scroll */
+            touch-action: none; /* Blocca zoom e gesti nativi */
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+        }
+
+        /* Canvas a tutto schermo */
+        #hydra-canvas {
+            display: block;
             position: absolute;
             top: 0;
             left: 0;
+            width: 100%;
+            height: 100%;
             z-index: 1;
         }
-        /* Stile del bottone di avvio per aggirare i blocchi mobile */
+
+        /* Overlay e Bottone: Z-Index altissimo e posizione FIXED */
         #overlay {
-            position: absolute;
+            position: fixed; /* Usiamo fixed per assicurarci che stia sopra su mobile */
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: black;
-            z-index: 10;
+            background-color: black;
+            z-index: 9999;
             display: flex;
             justify-content: center;
             align-items: center;
             cursor: pointer;
         }
+
         #start-btn {
-            color: white;
-            border: 2px solid white;
-            padding: 15px 30px;
-            font-size: 1.2rem;
+            background-color: white;
+            color: black;
+            padding: 20px 40px;
+            font-size: 1.5rem;
             font-weight: 900;
-            letter-spacing: 3px;
+            letter-spacing: 2px;
             text-transform: uppercase;
-            background: transparent;
+            border: none;
+            border-radius: 4px;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
         }
     </style>
 </head>
@@ -59,91 +67,122 @@
     <script src="https://unpkg.com/hydra-synth"></script>
 
     <script>
-        const overlay = document.getElementById('overlay');
-        
-        // Funzione principale che parte solo dopo il click
-        overlay.addEventListener('click', () => {
-            overlay.style.display = 'none'; // Nasconde il bottone
-            initTheSubstance(); // Avvia lo script
-        });
+        // Aspettiamo che tutto sia caricato prima di eseguire qualsiasi logica
+        window.onload = function() {
+            
+            const overlay = document.getElementById('overlay');
+            const canvas = document.getElementById("hydra-canvas");
+            let isStarted = false;
 
-        function initTheSubstance() {
-            // Inizializza Hydra
-            const hydra = new Hydra({
-                canvas: document.getElementById("hydra-canvas"),
-                detectAudio: false,
-                enableStreamCapture: false,
-                makeGlobal: true // Rende le funzioni (src, osc, etc.) globali
-            });
+            // Al click/touch sull'overlay, avviamo tutto
+            overlay.addEventListener('click', startExperience);
+            overlay.addEventListener('touchstart', startExperience, {passive: false});
 
-            // --- GESTIONE TOUCH MANUALE (FIX PER MOBILE) ---
-            // Forza l'aggiornamento di mouse.x e mouse.y quando si tocca lo schermo
-            document.addEventListener('touchmove', (e) => {
-                const touch = e.touches[0];
-                mouse.x = touch.clientX / window.innerWidth;
-                mouse.y = touch.clientY / window.innerHeight;
-            }, { passive: false });
-
-            document.addEventListener('touchstart', (e) => {
-                const touch = e.touches[0];
-                mouse.x = touch.clientX / window.innerWidth;
-                mouse.y = touch.clientY / window.innerHeight;
-            }, { passive: false });
-
-            // Imposta risoluzione
-            setResolution(window.innerWidth, window.innerHeight);
-
-            // --- GENERAZIONE SCRITTA (CANVAS ESTERNO) ---
-            const textCanvas = document.createElement('canvas');
-            const ctx = textCanvas.getContext('2d');
-
-            function updateText() {
-                textCanvas.width = window.innerWidth;
-                textCanvas.height = window.innerHeight;
-                ctx.clearRect(0, 0, textCanvas.width, textCanvas.height);
+            function startExperience(e) {
+                // Previene doppio avvio
+                if (isStarted) return;
+                isStarted = true;
                 
-                // Font reattivo
-                const fontSize = Math.max(16, Math.floor(window.innerWidth * 0.05)); 
-                ctx.font = '900 ' + fontSize + 'px Helvetica Neue, Arial, sans-serif';
-                ctx.fillStyle = '#FFFFFF';
-                ctx.textAlign = 'center';
-                ctx.letterSpacing = '3px';
+                // Evita comportamenti standard del browser
+                if(e) e.preventDefault();
 
-                const text = "ACTIVATE YOUR SUBCONSCIOUS";
-                ctx.fillText(text, textCanvas.width / 2, textCanvas.height * 0.92);
+                // Nasconde il bottone
+                overlay.style.display = 'none';
+
+                // AVVIA HYDRA
+                initHydra();
             }
 
-            updateText();
-            window.addEventListener('resize', () => {
-                setResolution(window.innerWidth, window.innerHeight);
-                updateText();
-            });
-            
-            // Inizializza s0 con il testo
-            s0.init({ src: textCanvas, dynamic: true });
+            function initHydra() {
+                // Inizializza istanza
+                const hydra = new Hydra({
+                    canvas: canvas,
+                    detectAudio: false,
+                    enableStreamCapture: false,
+                    makeGlobal: true
+                });
 
-            // --- LO SCRIPT VISUALE (THE SUBSTANCE) ---
-            src(o0)
-              .scale(1.05) 
-              .modulate(noise(3, 0.1)) 
-              .blend(
-                voronoi(8, 2, 5) 
-                  .modulateScale(osc(10, 0.1, 0.5), 0.5) 
-                  .modulateRotate(noise(2, 0.2), () => (mouse.x * 0.005)) 
-                  .thresh(0.3, 0.0) 
-                  .color(
-                    () => 1 + (mouse.y * 0.001), 
-                    () => 0.4 + (mouse.y * 0.005), 
-                    () => 0.4 
+                // --- GESTIONE TOUCH PER MOBILE (Simulazione Mouse) ---
+                // Aggiorna le coordinate mouse.x e mouse.y quando tocchi lo schermo
+                function updateTouch(e) {
+                    // Previene lo scroll
+                    e.preventDefault(); 
+                    
+                    let x, y;
+                    if (e.touches && e.touches.length > 0) {
+                        x = e.touches[0].clientX;
+                        y = e.touches[0].clientY;
+                    } else {
+                        x = e.clientX;
+                        y = e.clientY;
+                    }
+
+                    // Normalizza da 0 a 1 per Hydra
+                    if (typeof mouse !== 'undefined') {
+                        mouse.x = x / window.innerWidth;
+                        mouse.y = y / window.innerHeight;
+                    }
+                }
+
+                // Aggiunge i listener al canvas
+                canvas.addEventListener('mousemove', updateTouch);
+                canvas.addEventListener('touchmove', updateTouch, { passive: false });
+                canvas.addEventListener('touchstart', updateTouch, { passive: false });
+
+                // Imposta risoluzione iniziale
+                setResolution(window.innerWidth, window.innerHeight);
+
+                // --- GENERAZIONE SCRITTA ---
+                const textCanvas = document.createElement('canvas');
+                const ctx = textCanvas.getContext('2d');
+
+                function updateText() {
+                    textCanvas.width = window.innerWidth;
+                    textCanvas.height = window.innerHeight;
+                    ctx.clearRect(0, 0, textCanvas.width, textCanvas.height);
+                    
+                    const fontSize = Math.max(16, Math.floor(window.innerWidth * 0.05)); 
+                    ctx.font = '900 ' + fontSize + 'px Helvetica Neue, Arial, sans-serif';
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.textAlign = 'center';
+                    ctx.letterSpacing = '3px';
+
+                    const text = "ACTIVATE YOUR SUBCONSCIOUS";
+                    ctx.fillText(text, textCanvas.width / 2, textCanvas.height * 0.92);
+                }
+
+                updateText();
+                window.addEventListener('resize', () => {
+                    setResolution(window.innerWidth, window.innerHeight);
+                    updateText();
+                });
+                
+                // Carica la scritta in s0
+                s0.init({ src: textCanvas, dynamic: true });
+
+                // --- SCRIPT VISUALE (THE SUBSTANCE) ---
+                src(o0)
+                  .scale(1.05) 
+                  .modulate(noise(3, 0.1)) 
+                  .blend(
+                    voronoi(8, 2, 5) 
+                      .modulateScale(osc(10, 0.1, 0.5), 0.5) 
+                      .modulateRotate(noise(2, 0.2), () => (mouse.x * 0.005)) 
+                      .thresh(0.3, 0.0) 
+                      .color(
+                        () => 1 + (mouse.y * 0.001), 
+                        () => 0.4 + (mouse.y * 0.005), 
+                        () => 0.4 
+                      )
+                      .contrast(1.4)
+                      .brightness(0.1),
+                    0.1 
                   )
-                  .contrast(1.4)
-                  .brightness(0.1),
-                0.1 
-              )
-              .modulatePixelate(noise(25, 0.5), 100, 8) 
-              .layer(src(s0)) // Sovrappone la scritta
-              .out(o0);
-        }
+                  .modulatePixelate(noise(25, 0.5), 100, 8) 
+                  .layer(src(s0)) 
+                  .out(o0);
+            }
+        };
     </script>
 </body>
 </html>
