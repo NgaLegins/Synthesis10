@@ -3,20 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>The Substance - Autonomous</title>
+    <title>The Substance - Autonomous + Louder Audio</title>
     <style>
-        /* Reset e Setup Schermo */
         html, body {
             margin: 0;
             padding: 0;
             width: 100%;
             height: 100%;
             background-color: black;
-            overflow: hidden; /* Blocca scroll */
+            overflow: hidden;
             font-family: 'Helvetica Neue', Arial, sans-serif;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent; /* Rimuove flash blu su mobile */
         }
 
-        /* Canvas a tutto schermo */
         #hydra-canvas {
             display: block;
             position: absolute;
@@ -26,38 +26,120 @@
             height: 100%;
             z-index: 1;
         }
+
+        #audio-hint {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            background: rgba(0,0,0,0.5);
+            padding: 10px 20px;
+            border: 1px solid #555;
+            font-size: 14px;
+            z-index: 10;
+            pointer-events: none;
+            opacity: 1;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: opacity 0.5s;
+        }
     </style>
 </head>
 <body>
 
+    <div id="audio-hint">TAP SCREEN TO UNMUTE</div>
     <canvas id="hydra-canvas"></canvas>
 
     <script src="https://unpkg.com/hydra-synth"></script>
 
     <script>
-        // Avvia tutto appena la pagina è caricata
         window.onload = function() {
             
             const canvas = document.getElementById("hydra-canvas");
+            const hint = document.getElementById("audio-hint");
 
-            // Setup Hydra
+            // --- AUDIO ENGINE ---
+            let audioCtx;
+            let gainNode;
+            let isPlaying = false;
+
+            function initAudio() {
+                // Compatibilità cross-browser
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                
+                // Crea contesto solo se non esiste
+                if (!audioCtx) {
+                    audioCtx = new AudioContext();
+                }
+
+                // Se è sospeso (comune su mobile), riattivalo
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+
+                // Evita di creare doppi suoni se clicchi due volte
+                if (isPlaying) return;
+
+                // 1. Crea Buffer di Rumore Bianco
+                const bufferSize = audioCtx.sampleRate * 2; // 2 secondi
+                const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                const data = buffer.getChannelData(0);
+
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1; // Rumore bianco puro
+                }
+
+                const noiseSource = audioCtx.createBufferSource();
+                noiseSource.buffer = buffer;
+                noiseSource.loop = true;
+
+                // 2. Filtro (Modificato per essere più udibile)
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.value = 1200; // Alzato a 1200Hz (prima era 600Hz)
+
+                // 3. Volume (Alzato significativamente)
+                gainNode = audioCtx.createGain();
+                gainNode.gain.value = 0.25; // Alzato da 0.05 a 0.25
+
+                // 4. Collegamenti
+                noiseSource.connect(filter);
+                filter.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+
+                noiseSource.start();
+                isPlaying = true;
+                
+                // Feedback visivo che l'audio è partito
+                hint.style.opacity = 0;
+            }
+
+            // Gestione Click per sbloccare l'audio
+            document.body.addEventListener('click', () => {
+                initAudio();
+            }, { once: true }); // Esegue solo una volta
+            
+            document.body.addEventListener('touchstart', () => {
+                initAudio();
+            }, { once: true });
+
+
+            // --- HYDRA ENGINE ---
             const hydra = new Hydra({
                 canvas: canvas,
-                detectAudio: false, // Disabilitato audio per autoplay sicuro su mobile
+                detectAudio: false,
                 enableStreamCapture: false,
                 makeGlobal: true
             });
 
-            // Imposta Risoluzione iniziale
             setResolution(window.innerWidth, window.innerHeight);
 
-            // Aggiorna risoluzione se ruoti il telefono
             window.addEventListener('resize', () => {
                 setResolution(window.innerWidth, window.innerHeight);
-                updateText(); // Ridisegna il testo centrato
+                updateText();
             });
 
-            // --- GENERAZIONE SCRITTA (CANVAS ESTERNO) ---
             const textCanvas = document.createElement('canvas');
             const ctx = textCanvas.getContext('2d');
 
@@ -66,7 +148,6 @@
                 textCanvas.height = window.innerHeight;
                 ctx.clearRect(0, 0, textCanvas.width, textCanvas.height);
                 
-                // Font che scala con la larghezza (5% della larghezza schermo)
                 const fontSize = Math.max(16, Math.floor(window.innerWidth * 0.05)); 
                 
                 ctx.font = '900 ' + fontSize + 'px Helvetica Neue, Arial, sans-serif';
@@ -74,40 +155,32 @@
                 ctx.textAlign = 'center';
                 ctx.letterSpacing = '3px';
 
-                const text = "ACTIVATE YOUR SUBCONSCIOUS";
-                // Posizionato in basso al 93% dell'altezza
-                ctx.fillText(text, textCanvas.width / 2, textCanvas.height * 0.93);
+                ctx.fillText("ACTIVATE YOUR SUBCONSCIOUS", textCanvas.width / 2, textCanvas.height * 0.93);
             }
             
-            // Inizializza testo e lo carica nella sorgente s0
             updateText();
             s0.init({ src: textCanvas, dynamic: true });
             
+            // Visuals
             src(o0)
-              .scale(1.05) // Zoom costante fluido
-              .modulate(noise(2, 0.3)) // Imperfezioni organiche
+              .scale(1.05)
+              .modulate(noise(2, 0.3))
               .blend(
                 voronoi(6, 2, 5) 
-                  .modulateScale(osc(8, 0.1, 0.5), 0.5) // Battito cardiaco
-                  // ROTAZIONE AUTOMATICA: Usa 'time' invece di mouse.x
+                  .modulateScale(osc(8, 0.1, 0.5), 0.5)
                   .modulateRotate(noise(1, 0.2), () => Math.sin(time * 0.1) * 0.2) 
                   .thresh(0.3, 0.0) 
-                  // COLORE AUTOMATICO: Cambia da solo nel tempo
                   .color(
-                    // Rosso: Oscilla leggermente
                     () => 1 + (Math.sin(time * 0.2) * 0.1), 
-                    // Verde: Aumenta e diminuisce drasticamente (Effetto Siero)
-                    // Usa una sinusoide lenta per passare da carne a verde acido
                     () => 0.4 + ((Math.sin(time * 0.5) + 1) / 2) * 0.6, 
-                    // Blu: Basso costante
                     () => 0.4 
                   )
                   .contrast(1.8)
                   .brightness(0.2),
-                0.1 // Scia viscosa
+                0.1
               )
               .modulatePixelate(noise(10, 0.5), 100, 8) 
-              .layer(src(s0)) // Sovrappone la scritta
+              .layer(src(s0))
               .out(o0);
         };
     </script>
