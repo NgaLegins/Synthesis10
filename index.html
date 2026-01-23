@@ -82,21 +82,15 @@
             // Inizializza testo e lo carica nella sorgente s0
             updateText();
             s0.init({ src: textCanvas, dynamic: true });
-
-
-            // --- LOGICA AUTOMATICA (NIENTE MOUSE) ---
-            
-            // Creiamo un ciclo automatico lento (autoCycle) usando il tempo
-            // Math.sin(time) va da -1 a 1. Lo normalizziamo per usarlo nei colori.
             
             src(o0)
               .scale(1.05) // Zoom costante fluido
-              .modulate(noise(5, 0.3)) // Imperfezioni organiche
+              .modulate(noise(4, 0.3)) // Imperfezioni organiche
               .blend(
-                voronoi(8, 2, 5) 
-                  .modulateScale(osc(11, 0.1, 0.5), 0.5) // Battito cardiaco
+                voronoi(6, 2, 5) 
+                  .modulateScale(osc(8, 0.1, 0.5), 0.5) // Battito cardiaco
                   // ROTAZIONE AUTOMATICA: Usa 'time' invece di mouse.x
-                  .modulateRotate(noise(3, 0.2), () => Math.sin(time * 0.1) * 0.2) 
+                  .modulateRotate(noise(2, 0.2), () => Math.sin(time * 0.1) * 0.2) 
                   .thresh(0.3, 0.0) 
                   // COLORE AUTOMATICO: Cambia da solo nel tempo
                   .color(
